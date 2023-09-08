@@ -1,0 +1,109 @@
+<html>
+  <head>
+   <//link href="style.css" rel="stylesheet" />
+    <title>Welcome to APJ ConnectedApp Demo</title>
+  </head>
+  <body>
+    <div id="container">
+     
+      <tableau-viz id="tableauViz" ></tableau-viz>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.1.0/uuidv4.min.js"></script>
+    
+    <script type="module">
+      import { TableauEventType } from "https://prod-apsoutheast-a.online.tableau.com/javascripts/api/tableau.embedding.3.latest.js";
+
+      const config = {
+        workbookUrl:
+          "https://prod-apsoutheast-a.online.tableau.com/t/larryaustralianpod/views/SuperstoreBusinessReviewv2_2Live-askdata/SuperstoreExecutiveDashboard?:embed=y", 
+
+        //username: "larry.demo.user0+viewer@gmail.com",
+        username: "larry.demo.user0+viewer@gmail.com",
+        toolbar: "hidden",
+        scopes: ["tableau:views:embed", "tableau:views:embed_authoring"],
+        connectedApp: {
+          secretId: "c0c6f018-dbe2-4f5b-b636-c542c19cc0a2",
+          secret: "UvBHO244S7ASur+KHW1fQPAQWOpbzYQxVEtICKrbYc0=",
+          clientId: "4174497b-2a1f-4aad-91c8-c3f1feb4e1de",
+        },
+      };
+
+        function refreshMe(){
+          viz.refreshDataAsync();
+        }
+
+      
+      const signedToken = getJwt();
+
+      const viz = document.getElementById("tableauViz");
+      viz.token = signedToken;
+      viz.src = config.workbookUrl;
+      viz.toolbar = config.toolbar;
+//      onFirstInteractive: function () {
+        // Refresh the viz every 5000 milliseconds
+//      window.setInterval(viz.refreshDataAsync,5000);
+//      }
+      // viz.width = "800"
+      // viz.height = "800"
+      
+  viz.addEventListener(TableauEventType.Interactive, function() {
+        setInterval(refreshThatSucker, 50000);
+  });
+
+  function refreshThatSucker(){
+    viz.refreshDataAsync();
+  }
+
+
+      function getJwt() {
+        const header = {
+          alg: "HS256",
+          typ: "JWT",
+          kid: config.connectedApp.secretId,
+          iss: config.connectedApp.clientId,
+        };
+
+        const data = {
+          jti: uuidv4(),
+          iss: config.connectedApp.clientId,
+          aud: "tableau",
+          sub: config.username,
+          scp: config.scopes,
+          iat: Math.floor(Date.now() / 1000) - 5,
+          exp: Math.floor(Date.now() / 1000) + 5 * 60,
+        };
+
+        const encodedHeader = base64url(
+          CryptoJS.enc.Utf8.parse(JSON.stringify(header))
+        );
+        const encodedData = base64url(
+          CryptoJS.enc.Utf8.parse(JSON.stringify(data))
+        );
+
+        const token = `${encodedHeader}.${encodedData}`;
+        const signature = base64url(
+          CryptoJS.HmacSHA256(token, config.connectedApp.secret)
+        );
+
+        return `${token}.${signature}`;
+      }
+
+      function base64url(source) {
+        // Encode in classical base64
+        var encodedSource = CryptoJS.enc.Base64.stringify(source);
+
+        // Remove padding equal characters
+        encodedSource = encodedSource.replace(/=+$/, "");
+
+        // Replace characters according to base64url specifications
+        encodedSource = encodedSource.replace(/\+/g, "-");
+        encodedSource = encodedSource.replace(/\//g, "_");
+
+        return encodedSource;
+      }
+    </script>
+  </body>
+</html>
