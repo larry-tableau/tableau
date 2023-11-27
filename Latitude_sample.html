@@ -14,6 +14,16 @@
       justify-content: center;
       align-items: center;
     }
+    header {
+      width: 100%; /* Header takes the full width */
+      display: flex;
+      justify-content: center; /* Center header content */
+      margin-bottom: 20px; /* Optional: Adds some space below the header */
+    }
+    .logo img {
+      max-width: 100%; /* Ensure the image is responsive */
+      height: auto;
+    }
     #container {
       width: 90%; /* Adjust the width as needed */
       height: 80vh; /* Adjust the height as needed */
@@ -24,7 +34,10 @@
     }
     tableau-viz {
       width: 100%;
-      height: 100%; /* May need to adjust based on the aspect ratio of the viz */
+      height: auto; /* May need to adjust based on the aspect ratio of the viz */
+    }
+    footer {
+      width: 100%; /* Optional: Footer takes full width */
     }
   </style>
 </head>
