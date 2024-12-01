@@ -1,0 +1,92 @@
+query metadata_comprehensive {
+  publishedDatasources {
+    id
+    luid
+    name
+    description
+    hasExtracts
+    
+    owner {
+      luid
+      username
+      email
+    }
+    
+    isCertified
+    certifier {
+      luid
+      username
+      email
+    }
+    certificationNote
+    
+    fields {
+      id
+      name
+      description
+      
+      ... on CalculatedField {
+        formula
+        description
+        dataType
+      }
+    }
+    
+    upstreamDatasources {
+      name
+      luid
+      id
+      owner {
+        luid
+        username
+        email
+      }
+    }
+    
+    downstreamWorkbooks {
+      name
+      luid
+      id
+      owner {
+        luid
+        username
+        email
+      }
+      
+      embeddedDatasources {
+        name
+        fields {
+          name
+          description
+          ... on CalculatedField {
+            formula
+            dataType
+          }
+        }
+      }
+    }
+  }
+  
+  workbooks {
+    name
+    luid
+    id
+    owner {
+      luid
+      username
+      email
+    }
+    
+    embeddedDatasources {
+      name
+      fields {
+        name
+        description
+        ... on CalculatedField {
+          formula
+          dataType
+        }
+      }
+    }
+  }
+}
