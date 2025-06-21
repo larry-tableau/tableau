@@ -196,7 +196,7 @@ If you encounter issues:
 - **`chat_gpt_query.py`** - The main function that communicates with ChatGPT
 - **`deploy.py`** - Script that registers the function with TabPy
 - **`tabpy_config.conf`** - Configuration settings for TabPy
-- **`requirements3.txt`** - List of required Python packages
+- **`requirements.txt`** - List of required Python packages
 - **Log files** - Troubleshooting information
 
 ## 🔒 Security Notes
@@ -217,6 +217,3 @@ If you encounter issues:
 
 You now have ChatGPT integrated with Tableau! Start with simple prompts and gradually build more complex AI-powered visualizations.
 
----
-
-*Created for non-technical solution engineers - no coding experience required!*
