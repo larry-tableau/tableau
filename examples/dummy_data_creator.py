@@ -29,24 +29,24 @@ SCENARIO_CONFIG = {
 }
 
 def generate_realistic_business_units(count: int = 15) -> List[str]:
-    """Generate realistic ANZ business unit names"""
+    """Generate realistic banking business unit names"""
     business_units = [
         'Institutional Banking', 'Commercial Banking', 'Retail Banking',
-        'Home Loans', 'Personal Banking', 'Business Banking', 'Rural Banking',
+        'Mortgage Services', 'Personal Banking', 'Business Banking', 'Regional Banking',
         'International Banking', 'Investment Banking', 'Wealth Management',
         'Digital Banking', 'Corporate Banking', 'SME Banking', 'Private Banking',
-        'Treasury Services', 'Trade Finance', 'Equipment Finance', 'Agribusiness'
+        'Treasury Services', 'Trade Finance', 'Equipment Finance', 'Agricultural Finance'
     ]
     return business_units[:count]
 
 def generate_realistic_regions(count: int = 15) -> List[str]:
-    """Generate realistic ANZ regional segments"""
+    """Generate realistic regional segments"""
     regions = [
-        'Melbourne CBD', 'Sydney Metro', 'Brisbane CBD', 'Perth Metro',
-        'Adelaide Central', 'Canberra ACT', 'Gold Coast', 'Newcastle Hunter',
-        'Geelong Region', 'Wollongong', 'Cairns North', 'Darwin NT',
-        'Hobart Tasmania', 'Bendigo Regional', 'Ballarat Regional',
-        'Sunshine Coast', 'Central Coast NSW', 'Hunter Valley'
+        'Metropolitan Area A', 'Metropolitan Area B', 'Metropolitan Area C', 'Metropolitan Area D',
+        'Central Business District', 'Regional Center A', 'Regional Center B', 'Regional Center C',
+        'Coastal Region A', 'Coastal Region B', 'Northern Region', 'Southern Region',
+        'Eastern Region', 'Western Region', 'Rural Region A',
+        'Rural Region B', 'Suburban Region A', 'Suburban Region B'
     ]
     return regions[:count]
 
@@ -157,7 +157,7 @@ def generate_executive_summary(df: pd.DataFrame, config: Dict) -> Dict:
 
 def main():
     """Main data generation function"""
-    print("Starting ANZ Basel III Capital Adequacy data generation...")
+    print("Starting Basel III Capital Adequacy data generation...")
     
     # Generate foundational data categories
     business_units = generate_realistic_business_units(15)
@@ -189,7 +189,7 @@ def main():
     print("Generating Basel III capital metrics...")
     
     # Generate Basel III capital adequacy ratios with realistic ranges
-    # CET1 Ratio: Australian banks typically maintain 10-16%
+    # CET1 Ratio: International banks typically maintain 10-16%
     cet1_base = np.random.normal(12.5, 1.5, NUM_ROWS)
     cet1_ratio = np.clip(cet1_base, 8.0, 18.0)
     
@@ -197,20 +197,20 @@ def main():
     total_capital_base = cet1_ratio + np.random.normal(3.0, 1.0, NUM_ROWS)
     total_capital_ratio = np.clip(total_capital_base, 10.0, 22.0)
     
-    # Leverage Ratio: Basel III minimum 3%, Australian banks typically 4-7%
+    # Leverage Ratio: Basel III minimum 3%, major banks typically 4-7%
     leverage_base = np.random.normal(5.2, 0.8, NUM_ROWS)
     leverage_ratio = np.clip(leverage_base, 3.0, 8.0)
     
     print("Generating risk-weighted assets and provisions...")
     
-    # Risk-Weighted Assets (billions AUD)
+    # Risk-Weighted Assets (billions USD)
     rwa_base = np.random.lognormal(3.5, 0.8, NUM_ROWS)  # Mean around $30B
     rwa_amount = np.clip(rwa_base, 1.0, 500.0)
     
     # RWA Growth Rate (quarterly)
     rwa_growth = np.random.normal(0.02, 0.05, NUM_ROWS)  # 2% average growth
     
-    # Credit Loss Provisions (millions AUD)
+    # Credit Loss Provisions (millions USD)
     credit_loss_base = np.random.exponential(50, NUM_ROWS)
     credit_loss_provision = np.clip(credit_loss_base, 1.0, 2000.0)
     
@@ -275,13 +275,13 @@ def main():
     print(f"Detection Guidance: {summary['detection_guidance']}")
     
     # Export to CSV
-    output_filename = 'anz_basel_iii_capital_adequacy_data.csv'
+    output_filename = 'basel_iii_capital_adequacy_data.csv'
     df_final.to_csv(output_filename, index=False)
     print(f"\nData exported to {output_filename}")
     try:
         import pantab
-        hyper_filename = f"anz_basel_iii_capital_adequacy_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.hyper"
-        pantab.frame_to_hyper(df_final, hyper_filename, table='anz_basel_iii_capital_adequacy_data')
+        hyper_filename = f"basel_iii_capital_adequacy_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.hyper"
+        pantab.frame_to_hyper(df_final, hyper_filename, table='basel_iii_capital_adequacy_data')
         print(f"Dataset also saved as '{hyper_filename}'")
     except ImportError:
         print("pantab not available - skipping Hyper file generation")
