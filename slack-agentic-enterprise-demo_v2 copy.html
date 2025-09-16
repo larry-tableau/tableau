@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Slack‑Style Agentic Enterprise Demo v2</title>
+  <style>
+    :root{
+      --slack-purple:#4A154B;          /* Slack aubergine */
+      --slack-purple-700:#3A0F3A;      /* Darker header */
+      --slack-green:#007a5a;           /* Slack primary action */
+      --slack-teal:#2EB67D;            /* Slack mark color */
+      --slack-blue:#36C5F0;            /* Slack mark color */
+      --slack-yellow:#ECB22E;          /* Slack mark color */
+      --slack-pink:#E01E5A;            /* Slack mark color */
+      --bg:#ffffff; --text:#1d1c1d; --muted:#5e5e5e; --border:#e7e7e7;
+      --success:#1d9d73; --danger:#e01e5a; --warning:#f2c744;
+      --chip-expected:#e8f5ff; --chip-low:#ffeef3;
+      --hover:#f6f6f6; --subtle:#f8f8f8; --tint:#f3f1f4;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:14px/1.45 Hellix, Larsseit, Circular, "Helvetica Neue", -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+    /* Layout: sidebar | resizer | chat | resizer | dashboard */
+    .slack{display:grid;grid-template-columns:320px 6px 1fr 6px 320px;height:100vh;overflow:hidden}
+    .slack.is-right-collapsed{grid-template-columns:320px 6px 1fr 0px 0px}
+    .resizer{width:6px;cursor:col-resize;position:relative}
+    .resizer::after{content:"";position:absolute;top:0;bottom:0;left:2px;width:2px;background:#e6e6e6}
+
+    /* Sidebar: Slack rail + workspace */
+    .sidebar{display:grid;grid-template-columns:56px 1fr;background:linear-gradient(180deg,var(--slack-purple-700),var(--slack-purple) 32%,#5e1b6e 100%);color:#fff}
+    .rail{border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px}
+    .rail__btn{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:#fff;opacity:.92;cursor:pointer}
+    .rail__btn:hover{background:rgba(255,255,255,.10)}
+    .rail__sep{height:1px;width:28px;background:rgba(255,255,255,.14);margin:6px 0}
+
+    .ws{display:grid;grid-template-rows:auto 1fr}
+    .ws__head{padding:12px;display:flex;align-items:center;gap:8px;font-weight:800}
+    .logo-mark{width:24px;height:24px;border-radius:4px;background:#fff;object-fit:contain}
+    .ws__name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ws__body{overflow:auto;padding:6px 8px 12px}
+    .pill{background:rgba(255,255,255,.18);border-radius:8px;padding:8px 10px;margin:6px}
+    .navsec{margin:10px 0 6px;padding:0 8px;font-size:11px;opacity:.85}
+    .navitem{display:flex;align-items:center;gap:8px;padding:6px 8px;margin:2px 6px;border-radius:6px;color:#fff;cursor:pointer;white-space:nowrap}
+    .navicon{width:16px;height:16px;display:grid;place-items:center}
+    .navitem:hover{background:rgba(255,255,255,.10)}
+    .navitem--active{background:#fff;color:var(--slack-purple-700)}
+    .hash{opacity:.9;font-weight:700}
+    .avatar{width:18px;height:18px;border-radius:4px;background:#ffd;display:inline-grid;place-items:center;color:#333;font-size:11px}
+
+    /* Chat pane */
+    .chat{display:grid;grid-template-rows:48px 1fr auto;border-right:1px solid var(--border);min-height:0;position:relative}
+    .chat__header{height:48px;padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+    .chat__title{font-weight:800;font-size:15px}
+    .tag{font-size:12px;background:#eef1f4;color:#445;padding:2px 8px;border-radius:6px}
+    .chat__content{padding:8px 16px 8px;overflow:auto;min-height:0}
+    .msg{display:grid;grid-template-columns:44px 1fr;gap:10px;margin:10px 0}
+    .msg__avatar{width:32px;height:32px;border-radius:4px;background:#ddd;display:grid;place-items:center;font-weight:700;color:#555}
+    .msg__bubble{padding:2px 0}
+    .msg__bubble-inner{background:#fff;border-radius:6px;border:1px solid transparent;padding:0}
+    .msg--agent .msg__bubble-inner{background:var(--tint);border-color:var(--border);padding:10px 12px;border-radius:6px}
+    .msg__meta{color:var(--muted);font-size:12px;margin-bottom:2px}
+    .btnrow{display:flex;gap:8px;margin:8px 0 0 50px;flex-wrap:wrap}
+    .btn{background:#eaeaea;border:1px solid var(--border);padding:6px 10px;border-radius:6px;cursor:pointer}
+    .btn:hover{background:#e2e2e2}
+    .brand-btn{background:#fff}
+    .typing{color:var(--muted);font-size:12px;margin:6px 0 8px 54px;display:none}
+    /* Slack-like composer */
+    .composer{padding:8px 16px;border-top:1px solid var(--border);background:#fff}
+    .composer__box{border:1px solid var(--border);border-radius:8px;background:#fff;display:grid;grid-template-rows:auto auto}
+    .composer__toolbar{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #f0f0f0}
+    .tool{width:18px;height:18px;display:grid;place-items:center;color:#616061;cursor:pointer;border-radius:4px}
+    .tool:hover{background:#f6f6f6}
+    .composer__row{display:flex;align-items:center;gap:8px;padding:8px}
+    .composer__input{flex:1;min-height:24px;max-height:120px;padding:6px 8px;border:0;outline:none;resize:vertical;font:14px/1.45 inherit}
+    .composer__hint{font-size:12px;color:#777;margin-left:8px}
+    /* Slack green send button for a more authentic feel */
+    .send{background:var(--slack-green);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}
+    .send:hover{filter:brightness(1.05)}
+
+    /* Real Slack UI image previews (mention / slash command) */
+    .slack-pop{position:absolute;left:120px;bottom:108px;z-index:5;display:none}
+    .slack-pop__card{background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);overflow:hidden}
+    .slack-pop__head{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:#4a4a4a;background:#fafafa}
+    .slack-pop__body{max-width:min(760px,calc(100vw - 520px));}
+    .slack-pop__img{display:block;width:100%;height:auto}
+    .slack-pop__close{margin-left:auto;border:0;background:transparent;font-size:18px;line-height:1;cursor:pointer;color:#666}
+
+    /* Accessibility helper */
+    .visually-hidden{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+    /* Right dashboard pane */
+    .panel{display:grid;grid-template-rows:auto 1fr;min-height:0}
+    .panel__header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+    .logo-lockup{height:22px;object-fit:contain}
+    .panel--highlight{box-shadow:inset 0 0 0 2px rgba(74,21,75,.25)}
+    .panel__content{overflow:auto;padding:12px}
+    .panel[hidden]{display:none}
+    .kpi-grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:1180px){.kpi-grid{grid-template-columns:1fr 1fr}}
+    .kpi{border:1px solid var(--border);border-radius:10px;background:#fff;padding:10px;cursor:pointer}
+    .kpi__header{display:flex;align-items:center;gap:8px}
+    .kpi__title{font-weight:700;flex:1}
+    .chip{font-size:12px;padding:2px 6px;border-radius:999px;border:1px solid var(--border)}
+    .chip--expected{background:var(--chip-expected)}
+    .chip--low{background:var(--chip-low)}
+    .kpi__value{font-size:22px;font-weight:800;margin-top:6px}
+    .delta--up{color:var(--success)}
+    .delta--down{color:var(--danger)}
+    .kpi__delta{font-size:12px;margin-top:2px}
+    .kpi__chart{margin-top:6px}
+    .kpi__footer{display:flex;justify-content:space-between;color:#6a6a6a;font-size:12px}
+    .kpi__desc{color:#4d4d4d;font-size:12px;margin-top:6px}
+
+    /* Dashboard embed inside chat */
+    .dash-embed{border:1px solid var(--border);border-radius:10px;background:#fff;margin:6px 0 0 54px}
+    .dash-embed__title{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:700;background:#fafafa;border-radius:10px 10px 0 0}
+    .dash-embed__grid{display:grid;grid-template-columns:1fr;gap:10px;padding:10px}
+    @media(min-width:1060px){.dash-embed__grid{grid-template-columns:1fr 1fr}}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:16px}
+    .modal__card{width:min(720px,96vw);background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:0 10px 40px rgba(0,0,0,.18)}
+    .modal__head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .modal__title{font-weight:800}
+    .modal__close{margin-left:auto;border:0;background:#eee;border-radius:6px;cursor:pointer;padding:4px 8px}
+    .modal__body{padding:12px 14px}
+
+    /* Branding modal */
+    .uploader{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .upload-slot{border:1px dashed var(--border);border-radius:8px;padding:8px}
+    .upload-slot img{width:100%;height:72px;object-fit:contain;background:#fafafa;border:1px solid var(--border);border-radius:6px}
+
+    /* Status card + reminder */
+    .status-card{border:1px solid var(--border);border-radius:10px;background:#fff;margin:6px 0 0 54px;padding:10px}
+    .status-card__row{display:flex;align-items:center;gap:8px;margin:6px 0}
+    .status-card__btn{margin-left:auto}
+    .reminder-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 10px;border-radius:8px}
+    .visually-hidden{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  </style>
+</head>
+<body>
+  <div class="slack" id="layout">
+    <aside class="sidebar">
+      <div class="rail" aria-label="Slack app rail">
+        <div class="rail__btn" data-icon="home" title="Home"></div>
+        <div class="rail__btn" data-icon="dm" title="DMs"></div>
+        <div class="rail__btn" data-icon="activity" title="Activity"></div>
+        <div class="rail__btn" data-icon="calendar" title="Calendar"></div>
+        <div class="rail__sep"></div>
+        <div class="rail__btn" data-icon="bolt" title="Sales"></div>
+        <div class="rail__btn" data-icon="more" title="More"></div>
+      </div>
+      <div class="ws">
+        <div class="ws__head">
+          <!-- Slack 4‑color hash mark (inline SVG). Users can override via Branding modal. -->
+          <img id="logoMark" class="logo-mark" alt="Logo mark" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='9.6' y='1.8' width='4.8' height='10.5' rx='2.4' fill='%23E01E5A'/%3E%3Ccircle cx='12' cy='14.8' r='2.4' fill='%23E01E5A'/%3E%3Crect x='1.8' y='9.6' width='10.5' height='4.8' rx='2.4' fill='%232EB67D'/%3E%3Ccircle cx='14.8' cy='12' r='2.4' fill='%232EB67D'/%3E%3Crect x='9.6' y='12.7' width='4.8' height='9.5' rx='2.4' fill='%23ECB22E'/%3E%3Ccircle cx='12' cy='9.2' r='2.4' fill='%23ECB22E'/%3E%3Crect x='12.7' y='9.6' width='9.5' height='4.8' rx='2.4' fill='%2336C5F0'/%3E%3Ccircle cx='9.2' cy='12' r='2.4' fill='%2336C5F0'/%3E%3C/svg%3E"/>
+          <div class="ws__name">GlobalTech Solutions ▾</div>
+          <div aria-hidden="true">⚙️</div>
+        </div>
+        <div class="ws__body">
+          <div class="pill">Your calendar, in Slack — <span style="opacity:.9">A new way to plan your day</span></div>
+          <div class="pill" style="background:rgba(255,255,255,.14)">SW Sales Workspace ▾</div>
+
+          <div class="navitem"><span class="navicon" data-icon="threads"></span> Threads</div>
+          <div class="navitem"><span class="navicon" data-icon="recap"></span> Recap</div>
+          <div class="navitem"><span class="navicon" data-icon="drafts"></span> Drafts & sent</div>
+
+          <div class="navsec">▾ Channels</div>
+          <div class="navitem"><span class="hash">#</span> general</div>
+          <div class="navitem"><span class="hash">#</span> random</div>
+          <div class="navitem navitem--active"><span class="hash">#</span> sales-engagement-hub</div>
+          <div class="navitem"># Add channels</div>
+
+          <div class="navsec">▾ Direct messages</div>
+          <div class="navitem"><span class="avatar">J</span> Jennifer <span style="opacity:.8">you</span></div>
+          <div class="navitem"><span class="navicon" data-icon="people"></span> Browse all people</div>
+
+          <div class="navsec">▾ Apps</div>
+          <div class="navitem"><span class="navicon" data-icon="slackbot"></span> Slackbot <span style="margin-left:auto;background:#fff;color:#4A154B;border-radius:10px;padding:0 6px;font-size:11px">1</span></div>
+          <div class="navitem"><span class="navicon" data-icon="lab"></span> Demo Zone Admin</div>
+          <div class="navitem"><span class="navicon" data-icon="drive"></span> Google Drive</div>
+          <div class="navitem"><span class="navicon" data-icon="briefcase"></span> Sales</div>
+          <div class="navitem"><span class="navicon" data-icon="salesforce"></span> Salesforce for Slack</div>
+          <div class="navitem"><span class="navicon" data-icon="service"></span> Service Cloud for Slack</div>
+          <div class="navitem"><span class="navicon" data-icon="add"></span> Add apps</div>
+
+          <div class="navsec">▾ Agents</div>
+          <div class="navitem">🧑‍💼 Employee Concierge Agent</div>
+        </div>
+      </div>
+    </aside>
+    <div id="resizerLeft" class="resizer" aria-hidden="true"></div>
+    <main class="chat">
+      <div class="chat__header">
+        <div class="chat__title"># sales-diagnosis</div>
+        <span class="tag">Slack‑style prototype</span>
+        <span class="tag" style="margin-left:auto">Playback</span>
+        <button id="toggleRight" class="btn" style="padding:4px 8px" title="Toggle right sidebar"></button>
+        <button id="playPause" class="btn" style="padding:4px 8px">Manual</button>
+        <button id="resetDemo" class="btn" style="padding:4px 8px">Reset</button>
+        <button id="openBrand" class="btn brand-btn" style="padding:4px 8px">Branding</button>
+      </div>
+      <div class="chat__content"></div>
+      <div class="typing">Agentforce is typing…</div>
+      <!-- Slack UI previews overlay (images from Slack Mockup folder) -->
+      <div id="slackPop" class="slack-pop" role="dialog" aria-modal="false" aria-live="polite"></div>
+      <div class="composer">
+        <div class="composer__box">
+          <div class="composer__toolbar" aria-label="Message tools">
+            <span class="tool" data-icon="plus" title="Add"></span>
+            <span class="tool" data-icon="bolt" title="Shortcuts"></span>
+            <span class="tool" data-icon="paperclip" title="Attach file"></span>
+            <span class="tool" data-icon="bold" title="Bold"></span>
+            <span class="tool" data-icon="italic" title="Italic"></span>
+            <span class="tool" data-icon="list" title="Bulleted list"></span>
+            <span class="tool" data-icon="code" title="Code"></span>
+            <span class="tool" data-icon="link" title="Link"></span>
+            <span class="tool" data-icon="mention" title="Mention"></span>
+            <span class="tool" data-icon="emoji" title="Emoji"></span>
+          </div>
+          <div class="composer__row">
+            <textarea id="userInput" class="composer__input" rows="1" placeholder="Type here to begin… e.g., &quot;Show me the dashboard&quot;" aria-label="Message input"></textarea>
+            <button id="sendBtn" class="send" title="Send">${/* inline send icon */''}</button>
+          </div>
+        </div>
+        <div class="composer__hint">Press Enter to send • Shift+Enter for a new line</div>
+      </div>
+    </main>
+    <div id="resizerRight" class="resizer" aria-hidden="true"></div>
+    <aside class="panel">
+      <div class="panel__header">
+        <img id="logoLockup" class="logo-lockup" alt="Logo" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='24'%3E%3Crect width='24' height='24' rx='12' fill='%234A154B'/%3E%3Ctext x='32' y='17' font-family='Helvetica, Arial, sans-serif' font-size='14' fill='%23222222'%3EGlobalTech Solutions%3C/text%3E%3C/svg%3E"/>
+        <strong>AI Powered Customer Engagement Platform</strong>
+        <span style="margin-left:auto;color:#5a5a5a;font-size:12px;">as_of</span>
+        <select id="asof" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;">
+          <option selected>Current Quarter</option>
+          <option>Previous Quarter</option>
+        </select>
+      </div>
+      <div class="panel__content">
+        <div id="kpiGrid" class="kpi-grid"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal for KPI details -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal__card">
+      <div class="modal__head">
+        <div id="modalTitle" class="modal__title">Details</div>
+        <button class="modal__close" onclick="document.getElementById('modal').style.display='none'">×</button>
+      </div>
+      <div class="modal__body"></div>
+    </div>
+  </div>
+
+  <!-- Branding modal -->
+  <div id="brandModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="brandTitle">
+    <div class="modal__card">
+      <div class="modal__head">
+        <div id="brandTitle" class="modal__title">Branding</div>
+        <button class="modal__close" onclick="document.getElementById('brandModal').style.display='none'">×</button>
+      </div>
+      <div class="modal__body">
+        <div class="uploader">
+          <div class="upload-slot">
+            <div>Logo Mark (sidebar)</div>
+            <img id="markPreview" alt="Mark preview" />
+            <input id="markInput" type="file" accept="image/*" />
+          </div>
+          <div class="upload-slot">
+            <div>Logo Lockup (dashboard header)</div>
+            <img id="lockupPreview" alt="Lockup preview" />
+            <input id="lockupInput" type="file" accept="image/*" />
+          </div>
+        </div>
+        <div style="margin-top:12px;text-align:right">
+          <button id="saveBrand" class="btn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Inline SVG icons approximating Slack rail icons (no external assets)
+    function slackIcon(name){
+      const st = "stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'";
+      const d = {
+        home: `<svg width='20' height='20' viewBox='0 0 24 24'><path ${st} d='M3 11.5 12 4l9 7.5'/><path ${st} d='M5 10v9h5v-5h4v5h5v-9'/></svg>`,
+        dm: `<svg width='20' height='20' viewBox='0 0 24 24'><path ${st} d='M4 5h16v12H7l-3 3V5z'/></svg>`,
+        activity:`<svg width='20' height='20' viewBox='0 0 24 24'><path ${st} d='M3 12h4l2-6 4 12 2-6h4'/></svg>`,
+        calendar:`<svg width='20' height='20' viewBox='0 0 24 24'><rect ${st} x='3' y='5' width='18' height='16' rx='2'/><path ${st} d='M8 3v4M16 3v4M3 10h18'/></svg>`,
+        bolt:`<svg width='20' height='20' viewBox='0 0 24 24'><path ${st} d='M13 2 3 14h7l-1 8 10-12h-7l1-8z'/></svg>`,
+        more:`<svg width='20' height='20' viewBox='0 0 24 24'><circle cx='5' cy='12' r='2' fill='#fff'/><circle cx='12' cy='12' r='2' fill='#fff'/><circle cx='19' cy='12' r='2' fill='#fff'/></svg>`
+      };
+      return d[name] || '';
+    }
+
+    // Toolbar icons (dark stroke)
+    function slackToolIcon(name){
+      const st = "stroke='%23616061' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'";
+      const d = {
+        plus:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M12 5v14M5 12h14'/></svg>`,
+        bolt:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M13 2 3 14h7l-1 8 10-12h-7l1-8z'/></svg>`,
+        paperclip:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M8 12l7-7a4 4 0 1 1 6 6l-9 9a6 6 0 1 1-8.5-8.5l9-9'/></svg>`,
+        bold:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M7 5h6a4 4 0 1 1 0 8H7zM7 13h7a4 4 0 1 1 0 8H7z'/></svg>`,
+        italic:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M10 5h9M5 19h9M14 5l-4 14'/></svg>`,
+        list:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M9 6h11M9 12h11M9 18h11'/><circle cx='5' cy='6' r='1.5' fill='#616061'/><circle cx='5' cy='12' r='1.5' fill='#616061'/><circle cx='5' cy='18' r='1.5' fill='#616061'/></svg>`,
+        code:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M9 18L4 12l5-6M15 6l5 6-5 6'/></svg>`,
+        link:`<svg width='18' height='18' viewBox='0 0 24 24'><path ${st} d='M10 13a5 5 0 0 0 7 0l2-2a5 5 0 1 0-7-7l-1 1'/><path ${st} d='M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 1 0 7 7l1-1'/></svg>`,
+        mention:`<svg width='18' height='18' viewBox='0 0 24 24'><circle ${st} cx='12' cy='12' r='7'/><path ${st} d='M16 12a4 4 0 1 1-2-3.464V14c0 1.105.895 2 2 2s2-.895 2-2V8'/></svg>`,
+        emoji:`<svg width='18' height='18' viewBox='0 0 24 24'><circle ${st} cx='12' cy='12' r='9'/><path ${st} d='M8 14c1 1.333 2.667 2 4 2s3-.667 4-2'/><circle cx='9' cy='10' r='1.2' fill='#616061'/><circle cx='15' cy='10' r='1.2' fill='#616061'/></svg>`,
+        sidebar:`<svg width='18' height='18' viewBox='0 0 24 24'><rect ${st} x='3' y='4' width='18' height='16' rx='2'/><path ${st} d='M17 4v16'/></svg>`,
+        sidebar_off:`<svg width='18' height='18' viewBox='0 0 24 24'><rect ${st} x='3' y='4' width='18' height='16' rx='2'/><path ${st} d='M12 4v16'/></svg>`
+      };
+      return d[name] || '';
+    }
+
+    // Left nav small icons
+    function navIcon(name){
+      const st = "stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'";
+      const d = {
+        threads:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M4 7a5 5 0 0 1 5-5h6a5 5 0 0 1 0 10H9l-5 5 2.5-5H9a5 5 0 0 0 0-10'/></svg>`,
+        recap:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M12 8v5l4 2'/><circle ${st} cx='12' cy='12' r='9'/></svg>`,
+        drafts:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M4 6h16v12H4z'/><path ${st} d='M4 9h16'/></svg>`,
+        people:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2'/><circle ${st} cx='9' cy='7' r='3'/><path ${st} d='M16 11a4 4 0 0 1 4 4v2'/><circle ${st} cx='17' cy='7' r='3'/></svg>`,
+        slackbot:`<svg width='16' height='16' viewBox='0 0 24 24'><rect x='4' y='4' width='16' height='16' rx='3' fill='#fff'/><circle cx='9' cy='12' r='1.5' fill='#4A154B'/><circle cx='15' cy='12' r='1.5' fill='#4A154B'/></svg>`,
+        lab:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M10 2v4l-6 10a6 6 0 0 0 6 6h4a6 6 0 0 0 6-6L14 6V2'/></svg>`,
+        drive:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M6 19h12l-6-10H6l6-4 6 4'/></svg>`,
+        briefcase:`<svg width='16' height='16' viewBox='0 0 24 24'><rect ${st} x='3' y='7' width='18' height='13' rx='2'/><path ${st} d='M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/></svg>`,
+        salesforce:`<svg width='16' height='16' viewBox='0 0 24 24'><circle cx='8' cy='12' r='3' fill='#00A1E0'/><circle cx='12' cy='9' r='3' fill='#00A1E0'/><circle cx='16' cy='12' r='3' fill='#00A1E0'/></svg>`,
+        service:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z'/></svg>`,
+        add:`<svg width='16' height='16' viewBox='0 0 24 24'><path ${st} d='M12 5v14M5 12h14'/></svg>`
+      };
+      return d[name] || '';
+    }
+
+    // Global dashboard state (matches PRD_v2.5 data + behavior)
+    const dashboard = {
+      as_of: 'Current Quarter',
+      deltaMode: 'original', // flip to 'positiveUp' on improvement view
+      period: { start: '2025-07-01', end: '2025-09-30' },
+      tiles: [
+        { id:'pipeline_velocity', title:'AIPCE Pipeline Velocity', badge:'Expected', value:2.8, unit:'x', delta:{ value:-1.2, abs:-0.03, direction:'down', vs:'prior period' }, spark:[2.85,2.86,2.84,2.82,2.81,2.8,2.79,2.8,2.78,2.77], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, AIPCE Pipeline Velocity decreased by 0.03x. Entry-Level EMEA SDRs, Mid-Career APAC SDRs, and SMB NA AEs…' },
+        { id:'training_complete', title:'AI Sales Training Complete', badge:'Low', value:27, unit:'%', delta:{ value:-48.0, abs:-0.48, direction:'down', vs:'prior period' }, spark:[0.66,0.64,0.6,0.55,0.49,0.43,0.39,0.35,0.31,0.27], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, AI Sales Training Completed decreased by 48%. Mid-Career APAC SDRs, Entry-Level EMEA SDRs, and Enterprise ANZ AEs…' },
+        { id:'customer_churn', title:'AIPCE Customer Churn', badge:'Low', value:6.2, unit:'%', delta:{ value:22.4, abs:1.1, direction:'up', vs:'prior period' }, spark:[4.9,5.0,5.1,5.3,5.6,5.7,5.9,6.0,6.1,6.2], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, AIPCE Customer Churn increased by 1.1%. Enterprise ANZ AEs, Mid-Career APAC SDRs, and SMB NA SDRs…' },
+        { id:'employee_satisfaction', title:'Employee Satisfaction', badge:'Low', value:3.55, unit:'/5', delta:{ value:-13.8, abs:-0.57, direction:'down', vs:'prior period' }, spark:[4.12,4.06,4.01,3.98,3.92,3.85,3.74,3.69,3.62,3.55], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, Employee Satisfaction decreased by 0.57. Mid-Career APAC SDRs, Enterprise ANZ AEs, and Entry-Level EMEA SDRs…' },
+        { id:'sdr_burnout', title:'SDR Burnout Signals', badge:'Expected', value:61, unit:'', delta:{ value:2.8, abs:2, direction:'up', vs:'prior period' }, spark:[58,58,59,59,60,60,60,61,61,61], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, SDR Burnout Signals increased by 2. Mid-Career APAC SDRs, Entry-Level EMEA SDRs, and Enterprise ANZ AEs — small increase moved SDR Burnout slightly below the expected range…' },
+        { id:'sales_volume', title:'AIPCE Sales Volume', badge:'Low', value:249.0, unit:'M', delta:{ value:-8.8, abs:-23.9, direction:'down', vs:'prior period' }, spark:[1.21,1.19,1.18,1.17,1.16,1.15,1.11,1.09,1.08,1.06], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, AIPCE Sales Volume decreased by 23.9M dollars. Mid-Career APAC SDRs, Entry-Level EMEA SDRs, and Enterprise ANZ AEs…' },
+        { id:'itsm_mttr', title:'ITSM – Sales tools – MTTR (days)', badge:'Expected', value:3.0, unit:'', delta:{ value:0.7, abs:0.02, direction:'up', vs:'prior period' }, spark:[3.1,3.1,3.05,3.02,3.01,3.03,3.04,3.05,3.05,3.06], range:['1 July 2025','30 Sept 2025'], desc:'Compared to last quarter, ITSM – Sales tools – MTTR (days) increased by 0.02 days. SMB NA SDRs, Enterprise ANZ AEs, and Entry-Level EMEA SDRs…' }
+      ]
+    };
+
+    // Conversation flow (Text.md verbatim phrasing)
+    const narrativeFlow = [
+      { user: "Hey Concierge, I’m seeing sales dropping and employee satisfaction trending down in this dashboard. Can you help me understand what’s going on?", agent: "Sure. I’ve cross-referenced sales performance data with recent employee survey results.<br>The decline in satisfaction is concentrated in the Sales Development team.<br>Burnout signals are strongest among mid-career reps with 3–5 years tenure.<br><b>Analytics Cloud</b> sales are down 20% specifically in that group.", buttons:["Display dashboard"], next:"That’s interesting. Which employees or cohorts are most impacted?" },
+      { user: "That’s interesting. Which employees or cohorts are most impacted?", agent: "The most impacted cohort is:<br>High-potential sales reps in APAC<br>Reporting higher workload, lower satisfaction, and more burnout signals<br>Compared to top-performing cohorts, they’ve completed fewer training courses and logged more IT support requests about sales tools.", buttons:["Display dashboard","Compare cohorts"], next:"Can you show me what’s different between the high-performing reps and the low-performing ones?" },
+      { user: "Can you show me what’s different between the high-performing reps and the low-performing ones?", agent: "Yes. Here’s the comparison:<br>High-performing cohort: 85% completed the “Advanced Sales Enablement” training, strong access to the latest CRM features, survey comments show “good coaching and support”.<br>Low-performing cohort: Only 30% completed the same training, frequent ITSM tickets for tool access, survey comments show “lack of development opportunities” and “manual work is slowing me down”.", buttons:["Check training catalog","Show skill gaps"], next:"We have a training catalog—can you check if the missing skills align with available courses?" },
+      { user: "We have a training catalog—can you check if the missing skills align with available courses?", agent: "Got it. Based on this catalog, I recommend:<br>“Advanced Sales Enablement” (matches the skill gap).<br>“CRM Automation & Productivity Tools” (addresses manual work complaints).<br>Do you want me to go ahead and enroll these users into those courses?", buttons:["Enroll users","See more options"], next:"Yes that would be great! Any other actions can we take right now?" },
+      { user: "Yes that would be great! Any other actions can we take right now?", agent: "Here’s an action plan:<br>I can schedule a pulse survey for those users in 2 months time to review employee satisfaction and review performance and create an ITSM request to ensure they all have access to the right sales tools?", buttons:["Set that up","Modify plan"], next:"Perfect. Can you go ahead and set that up?" },
+      { user: "Perfect. Can you go ahead and set that up?", agent: "✅ Action plan created:<br>Survey will go out next month.<br>Training invitations sent via LMS.<br>ITSM tickets raised for missing access.", buttons:["View action status","Set reminders"] }
+    ];
+
+    // Rendering helpers
+    function renderSpark(values,color="#5f6b7a"){const w=240,h=48,p=4,max=Math.max(...values),min=Math.min(...values);const pts=values.map((v,i)=>{const x=p+(i/(values.length-1))*(w-2*p);const y=h-p-((v-min)/(max-min||1))*(h-2*p);return `${x.toFixed(1)},${y.toFixed(1)}`}).join(" ");return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${color}" stroke-width="2" points="${pts}"/></svg>`}
+    function chipClass(b){return b==='Expected'?'chip chip--expected':'chip chip--low'}
+    function deltaText(d){const mode=dashboard.deltaMode||'original';let cls;if(mode==='positiveUp'){cls=d.direction==='up'?'delta--down':'delta--up'}else{cls=d.direction==='down'?'delta--down':'delta--up'}const sign=d.value>0?'+':'';return `<span class="${cls}">${sign}${d.value}% (${d.abs>0?'+':''}${d.abs})</span> vs. ${d.vs}`}
+    function tileHTML(t){return `<div class="kpi" role="button" tabindex="0"><div class="kpi__header"><div class="kpi__title">${t.title}</div><div class="${chipClass(t.badge)}">${t.badge}</div></div><div class="kpi__value">${t.value}${t.unit}</div><div class="kpi__delta">${deltaText(t.delta)}</div><div class="kpi__chart">${renderSpark(t.spark)}</div><div class="kpi__footer"><span>${t.range[0]}</span><span>${t.range[1]}</span></div><div class="kpi__desc">${t.desc}</div></div>`}
+
+    function renderDashboard(){const grid=document.querySelector('#kpiGrid');grid.innerHTML='';dashboard.tiles.forEach(t=>{const c=document.createElement('div');c.innerHTML=tileHTML(t);const card=c.firstElementChild;card.addEventListener('click',()=>openModal(t));grid.appendChild(card)});}
+
+    function injectDashboardEmbed(){const wrap=document.querySelector('.chat__content');const shell=document.createElement('div');shell.className='dash-embed';shell.innerHTML=`<div class="dash-embed__title">AI Powered Customer Engagement Platform — ${dashboard.as_of}</div><div class="dash-embed__grid"></div>`;const grid=shell.querySelector('.dash-embed__grid');dashboard.tiles.forEach(t=>{const d=document.createElement('div');d.innerHTML=tileHTML(t);grid.appendChild(d.firstElementChild)});wrap.appendChild(shell);wrap.scrollTop=wrap.scrollHeight}
+
+    function injectStarterViz(){const wrap=document.querySelector('.chat__content');const shell=document.createElement('div');shell.className='dash-embed';shell.innerHTML=`<div class="dash-embed__title">AIPCE Overview (Starter)</div><div class="dash-embed__grid"></div>`;const grid=shell.querySelector('.dash-embed__grid');const starter=["sales_volume","employee_satisfaction","sdr_burnout"];dashboard.tiles.filter(t=>starter.includes(t.id)).forEach(t=>{const d=document.createElement('div');d.innerHTML=tileHTML(t);grid.appendChild(d.firstElementChild)});wrap.appendChild(shell);wrap.scrollTop=wrap.scrollHeight}
+
+    // Slack image previews — show authentic Slack UI snippets from the local "Slack Mockup" folder
+    const SLACK_MOCK_BASE = 'Slack%20Mockup%20/%20Chat%20/';
+    function slackPreviewPath(kind){
+      switch(kind){
+        case 'mention': return SLACK_MOCK_BASE + 'Mention.png';
+        case 'praise': return SLACK_MOCK_BASE + 'Praise.png';
+        case 'mention-dropdown': return SLACK_MOCK_BASE + '%20Mention%20/Dropdown.png';
+        case 'slash-dropdown': return SLACK_MOCK_BASE + '%20Praise%20/Dropdown.png';
+        default: return '';
+      }
+    }
+    function showSlackPreview(kind, title='Slack UI Preview'){
+      const pop = document.getElementById('slackPop');
+      const src = slackPreviewPath(kind); if(!src) return;
+      pop.innerHTML = `<div class="slack-pop__card"><div class="slack-pop__head">${title}<button class="slack-pop__close" data-close="pop" aria-label="Close">×</button></div><div class="slack-pop__body"><img class="slack-pop__img" alt="Slack ${kind} preview" src="${src}"/></div></div>`;
+      pop.style.display = 'block';
+    }
+    function hideSlackPreview(){ const pop = document.getElementById('slackPop'); pop.style.display='none'; pop.innerHTML=''; }
+
+    // Status card + reminders + improved view
+    function injectStatusCard(){const wrap=document.querySelector('.chat__content');const card=document.createElement('div');card.className='status-card';const ts=new Date().toLocaleString([], {month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'});card.innerHTML=`<div style="font-weight:700;margin-bottom:6px">Action status</div><div class="status-card__row">📚 Enrollments: <b>214,525</b> staged → <b>invites sent</b> (${ts})</div><div class="status-card__row">📝 Pulse survey: <b>scheduled next month</b> • audience: impacted cohort</div><div class="status-card__row">🧰 ITSM access: <b>tickets raised</b> for missing tool access</div><div class="reminder-row"><span class="tag">Set reminder</span><button class="btn" onclick="reminderPicker()">Pick time…</button></div>`;wrap.appendChild(card);wrap.scrollTop=wrap.scrollHeight}
+    function reminderPicker(){const wrap=document.querySelector('.chat__content');const row=document.createElement('div');row.className='reminder-row';["End of day","Tomorrow 9am","Next week","End of quarter"].forEach(l=>{const b=document.createElement('button');b.className='btn';b.textContent=l;b.addEventListener('click',()=>handleReminder(l,row));row.appendChild(b)});wrap.appendChild(row);wrap.scrollTop=wrap.scrollHeight}
+    function nextQuarterStart(endISO){const d=new Date(endISO);return new Date(d.getFullYear(), (Math.floor(d.getMonth()/3)+1)*3, 1)}
+    function improvedTiles(){return [
+      { id:'pipeline_velocity', title:'AIPCE Pipeline Velocity', badge:'Expected', value:3.1, unit:'x', delta:{ value:10.7, abs:0.3, direction:'up', vs:'prior period' }, spark:[2.8,2.82,2.85,2.9,2.95,3.0,3.02,3.05,3.08,3.1], range:['1 Oct 2025','31 Dec 2025'], desc:'Next quarter, pipeline velocity improved by 0.3x after training + tooling rollout.' },
+      { id:'training_complete', title:'AI Sales Training Complete', badge:'Expected', value:77, unit:'%', delta:{ value:185.2, abs:0.50, direction:'up', vs:'prior period' }, spark:[0.27,0.35,0.44,0.53,0.61,0.66,0.69,0.72,0.75,0.77], range:['1 Oct 2025','31 Dec 2025'], desc:'Training completion reached 77% post‑enrollment; reminders raised adoption.' },
+      { id:'customer_churn', title:'AIPCE Customer Churn', badge:'Expected', value:4.8, unit:'%', delta:{ value:-22.6, abs:-1.4, direction:'down', vs:'prior period' }, spark:[6.2,6.0,5.7,5.5,5.2,5.0,4.9,4.85,4.82,4.8], range:['1 Oct 2025','31 Dec 2025'], desc:'Churn dropped by 1.4% with improved tooling + coaching.' },
+      { id:'employee_satisfaction', title:'Employee Satisfaction', badge:'Expected', value:4.20, unit:'/5', delta:{ value:18.3, abs:0.65, direction:'up', vs:'prior period' }, spark:[3.55,3.62,3.7,3.82,3.95,4.05,4.12,4.16,4.19,4.20], range:['1 Oct 2025','31 Dec 2025'], desc:'Satisfaction increased by 0.65; pulse feedback cites better support.' },
+      { id:'sdr_burnout', title:'SDR Burnout Signals', badge:'Expected', value:55, unit:'', delta:{ value:-9.8, abs:-6, direction:'down', vs:'prior period' }, spark:[61,60,60,59,58,57,56,56,55,55], range:['1 Oct 2025','31 Dec 2025'], desc:'Burnout signals eased after workload balancing and automation.' },
+      { id:'sales_volume', title:'AIPCE Sales Volume', badge:'Expected', value:274.2, unit:'M', delta:{ value:10.1, abs:25.2, direction:'up', vs:'prior period' }, spark:[1.06,1.08,1.10,1.12,1.15,1.18,1.20,1.22,1.24,1.27], range:['1 Oct 2025','31 Dec 2025'], desc:'Sales volume added +25.2M following skill uplift + fewer tool blockers.' }
+    ]}
+    function injectImprovedDashboardEmbed(){const wrap=document.querySelector('.chat__content');const shell=document.createElement('div');shell.className='dash-embed';shell.innerHTML=`<div class=\"dash-embed__title\">AIPCE Overview — Next Quarter</div><div class=\"dash-embed__grid\"></div>`;const grid=shell.querySelector('.dash-embed__grid');improvedTiles().forEach(t=>{const d=document.createElement('div');d.innerHTML=tileHTML(t);grid.appendChild(d.firstElementChild)});wrap.appendChild(shell);wrap.scrollTop=wrap.scrollHeight}
+    function handleReminder(label,row){let whenLabel=label;if(label==='End of quarter'){const dateStr=nextQuarterStart(dashboard.period.end).toLocaleDateString();whenLabel=`next quarter (${dateStr})`;}const toast=document.createElement('div');toast.className='toast';toast.textContent=`Reminder set for ${whenLabel}`;row.replaceWith(toast);setTimeout(()=>{typeMessage({role:'agent', text:'Following up on your reminder — here is the updated dashboard for next quarter.'},()=>{const ns=nextQuarterStart(dashboard.period.end);dashboard.as_of='Next Quarter';dashboard.period={start:ns.toISOString().slice(0,10),end:new Date(ns.getFullYear(), ns.getMonth()+3, 0).toISOString().slice(0,10)};dashboard.tiles=improvedTiles();dashboard.deltaMode='positiveUp';renderDashboard();injectImprovedDashboardEmbed();});},900)}
+
+    // Modal
+    function openModal(tile){const m=document.querySelector('#modal');m.querySelector('.modal__title').textContent=tile.title;const prev=computePrevious(tile.value,tile.delta.value);m.querySelector('.modal__body').innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap"><div class="kpi" style="flex:1"><div class="kpi__title">Current (${dashboard.as_of})</div><div class="kpi__value">${tile.value}${tile.unit}</div><div class="kpi__delta">${deltaText(tile.delta)}</div></div><div class="kpi" style="flex:1"><div class="kpi__title">Previous Period</div><div class="kpi__value">${prev.toFixed(2)}${tile.unit}</div><div class="kpi__delta" style="color:#5a5a5a">Derived from change</div></div></div><div class="kpi__desc" style="margin-top:12px;">${tile.desc}</div><div class="kpi__chart" style="margin-top:12px;">${renderSpark(tile.spark,'#4A154B')}</div>`;m.style.display='flex'}
+    function computePrevious(current,pct){const denom=1+(pct/100);if(denom===0) return current;return current/denom}
+
+    // Chat primitives (streaming)
+    function addMessage({role,text}){const wrap=document.querySelector('.chat__content');const row=document.createElement('div');row.className=`msg ${role==='agent'?'msg--agent':''}`;row.innerHTML=`<div class="msg__avatar">${role==='agent'?'AI':'U'}</div><div class="msg__bubble"><div class="msg__meta">${role==='agent'?'Agentforce':'You'} • ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div class="msg__bubble-inner"><div class="msg__text">${text}</div></div></div>`;wrap.appendChild(row);wrap.scrollTop=wrap.scrollHeight}
+    function typeMessage({role,text},cb){const wrap=document.querySelector('.chat__content');const row=document.createElement('div');row.className=`msg ${role==='agent'?'msg--agent':''}`;row.innerHTML=`<div class="msg__avatar">${role==='agent'?'AI':'U'}</div><div class="msg__bubble"><div class="msg__meta">${role==='agent'?'Agentforce':'You'} • ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div class="msg__bubble-inner"><div class="msg__text"></div></div></div>`;wrap.appendChild(row);const typing=document.querySelector('.typing');if(role==='agent') typing.style.display='block';let i=0;const target=row.querySelector('.msg__text');const timer=setInterval(()=>{target.innerHTML=text.slice(0,i++);wrap.scrollTop=wrap.scrollHeight;if(i>text.length){clearInterval(timer);if(role==='agent') typing.style.display='none';cb&&cb();}}, Math.min(30, Math.max(10, 1200/(text.length+1))))}
+
+    // Buttons + interactions
+    function addButtons(buttons,nextText){const wrap=document.querySelector('.chat__content');const row=document.createElement('div');row.className='btnrow';buttons.forEach(b=>{const btn=document.createElement('button');btn.className='btn';btn.textContent=b;btn.addEventListener('click',()=>handleInteractiveElement(b));row.appendChild(btn)});wrap.appendChild(row);if(nextText){const suggest=document.createElement('div');suggest.className='btnrow';suggest.innerHTML=`<span class="tag">Next Suggested Reply</span>`;const chip=document.createElement('button');chip.className='btn';chip.textContent=nextText;chip.addEventListener('click',()=>{autoplay=false;playNext();});suggest.appendChild(chip);wrap.appendChild(suggest)}wrap.scrollTop=wrap.scrollHeight}
+
+    function handleInteractiveElement(label){const l=label.toLowerCase();if(l.includes('dashboard')){renderDashboard();const panel=document.querySelector('.panel');panel.classList.add('panel--highlight');setTimeout(()=>panel.classList.remove('panel--highlight'),1200);typeMessage({role:'agent', text:'Opening the AIPCE dashboard for the Current Quarter. Notice training completion, burnout signals, churn, and MTTR trends.'});injectDashboardEmbed();openModal(dashboard.tiles[0]);} else if (l.includes('enroll')){typeMessage({role:'agent', text:'I have staged enrollments for mid-career APAC reps. You can confirm to send invites now.'});} else if (l.includes('set that up')){const step=narrativeFlow[5];typeMessage({role:'agent', text:step.agent}, ()=>{addButtons(['View action status','Set reminders']);});} else if (l.includes('compare cohorts')){const step=narrativeFlow[2];typeMessage({role:'agent', text:step.agent}, ()=>addButtons(step.buttons, step.next));} else if (l.includes('check training')){const step=narrativeFlow[3];typeMessage({role:'agent', text:step.agent}, ()=>addButtons(step.buttons, step.next));} else if (l.includes('view action status')){injectStatusCard();} else if (l.includes('set reminders')){reminderPicker();}}
+
+    // Intent mapping with normalization (smart quotes / hyphens)
+    function normalize(t){return t.toLowerCase().replace(/[“”]/g,'"').replace(/[’']/g,"'").replace(/[‐‑‒–—−]/g,'-').replace(/\s+/g,' ').trim()}
+    function showStep(i){const s=narrativeFlow[i];typeMessage({role:'agent', text:s.agent}, ()=>addButtons(s.buttons, s.next))}
+    function handleUserInput(input){const txt=normalize(input);if((txt.includes('sales dropping')&&txt.includes('employee satisfaction'))||txt.includes('help me understand')){const step=narrativeFlow[0];typeMessage({role:'agent', text:step.agent}, ()=>{handleInteractiveElement('Display dashboard')});return;} if (txt.includes('which employees') && txt.includes('cohorts')){showStep(1);return;} if (/what'?s different/.test(txt)||/different .*high[- ]?performing.*low[- ]?performing/.test(txt)){handleInteractiveElement('Compare cohorts');return;} if (txt.includes('compare cohorts')){handleInteractiveElement('Compare cohorts');return;} if (txt.includes('training catalog')||(txt.includes('missing skills')&&txt.includes('available courses'))){showStep(3);return;} if (txt.includes('enroll users')||txt.includes('enrol users')||txt.includes('enroll')){handleInteractiveElement('Enroll users');return;} if (txt.includes('set that up')){handleInteractiveElement('Set that up');return;} addMessage({role:'agent', text:'Try: “compare cohorts”, “check training catalog”, “enroll users”, or “set that up”.'})}
+
+    // Manual/Auto playback
+    let autoplay=false, playIndex=0, playing=false;
+    function playNext(){if(playing||!autoplay) return; if(playIndex>=narrativeFlow.length) return; playing=true;const step=narrativeFlow[playIndex++];typeMessage({role:'user', text:step.user}, ()=>{typeMessage({role:'agent', text:step.agent}, ()=>{addButtons(step.buttons, step.next);playing=false;});});}
+
+    // Branding uploads (persist to localStorage)
+    function readAsDataUrl(file){return new Promise((res)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(file)})}
+    function restoreBranding(){const m=localStorage.getItem('brand_mark');const l=localStorage.getItem('brand_lockup');if(m) document.getElementById('logoMark').src=m;if(l) document.getElementById('logoLockup').src=l}
+
+    // Resizers: drag to resize grid columns
+    function initResizers(){const grid=document.querySelector('.slack');const left=document.getElementById('resizerLeft');const right=document.getElementById('resizerRight');function startDrag(e,side){e.preventDefault();const startX=e.clientX;const cols=getComputedStyle(grid).gridTemplateColumns.split(' ');let leftW=parseInt(cols[0]);let rightW=parseInt(cols[4]);function onMove(ev){const dx=ev.clientX-startX;if(side==='left'){leftW=Math.min(420,Math.max(260,leftW+dx));} else {rightW=Math.min(520,Math.max(260,rightW-dx));} grid.style.gridTemplateColumns=`${leftW}px 6px 1fr 6px ${rightW}px`;} function onUp(){window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);} window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);} left.addEventListener('mousedown',e=>startDrag(e,'left')); right.addEventListener('mousedown',e=>startDrag(e,'right'))}
+
+    // Initialize
+    function seed(){renderDashboard();restoreBranding();injectStarterViz();document.getElementById('playPause').textContent='Manual';}
+    (()=>{
+      document.querySelectorAll('.rail__btn[data-icon]').forEach(el=>{el.innerHTML=slackIcon(el.dataset.icon)});
+      document.querySelectorAll('.navicon[data-icon]').forEach(el=>{el.innerHTML=navIcon(el.dataset.icon)});
+      document.querySelectorAll('.tool[data-icon]').forEach(el=>{el.innerHTML=slackToolIcon(el.dataset.icon)});
+      // Show authentic Slack previews when using composer tools
+      const mentionTool = document.querySelector('.tool[data-icon="mention"]');
+      const boltTool = document.querySelector('.tool[data-icon="bolt"]');
+      if(mentionTool) mentionTool.addEventListener('click',()=> showSlackPreview('mention-dropdown','Mention people'));
+      if(boltTool) boltTool.addEventListener('click',()=> showSlackPreview('slash-dropdown','Shortcuts'));
+      // Send button icon
+      document.getElementById('sendBtn').innerHTML = `<svg width='18' height='18' viewBox='0 0 24 24'><path fill='#fff' d='M2 12L22 3l-4 9 4 9z'/></svg><span class='visually-hidden'>Send</span>`;
+      // Right panel toggle icon
+      const toggleBtn = document.getElementById('toggleRight');
+      const setToggleIcon = (collapsed)=>{toggleBtn.innerHTML = slackToolIcon(collapsed?'sidebar':'sidebar_off')+`<span class='visually-hidden'>${collapsed?'Expand right panel':'Collapse right panel'}</span>`; toggleBtn.setAttribute('aria-pressed', collapsed?'true':'false'); toggleBtn.title = collapsed ? 'Expand' : 'Collapse'; };
+      setToggleIcon(false);
+      toggleBtn.addEventListener('click',()=>{
+        const layout = document.getElementById('layout');
+        const isCollapsed = layout.classList.toggle('is-right-collapsed');
+        document.getElementById('resizerRight').style.display = isCollapsed ? 'none' : '';
+        document.querySelector('aside.panel').hidden = isCollapsed;
+        setToggleIcon(isCollapsed);
+      });
+      // Composer key handling (Enter to send, Shift+Enter newline)
+      const ta = document.getElementById('userInput');
+      // Auto-resize textarea to content up to max-height
+      ta.addEventListener('input', ()=>{
+        ta.style.height='auto';ta.style.height=Math.min(120, ta.scrollHeight)+'px';
+        const txt = ta.value;
+        if(/@\s?$/.test(txt)) showSlackPreview('mention-dropdown','Mention people');
+        if(/^\s*\/(a|action)/i.test(txt)) showSlackPreview('slash-dropdown','Shortcuts');
+        if(txt.trim()==='') hideSlackPreview();
+      });
+      ta.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('sendBtn').click(); }
+      });
+      document.getElementById('sendBtn').onclick = ()=>{
+        const v = ta.value.trim(); if(!v) return; addMessage({role:'user', text:v}); handleUserInput(v); ta.value=''; ta.style.height=''; ta.focus(); hideSlackPreview();
+      };
+      // Close preview when clicking the X
+      document.getElementById('slackPop').addEventListener('click',(e)=>{if(e.target.closest('[data-close="pop"]')) hideSlackPreview();});
+      // Controls
+      document.getElementById('playPause').addEventListener('click',function(){autoplay=!autoplay;this.textContent=autoplay?'Auto':'Manual'; if(autoplay) playNext();});
+      document.getElementById('resetDemo').addEventListener('click',()=>{document.querySelector('.chat__content').innerHTML='';playIndex=0;autoplay=false;document.getElementById('playPause').textContent='Manual';dashboard.as_of='Current Quarter';dashboard.deltaMode='original';dashboard.period={start:'2025-07-01', end:'2025-09-30'};seed();});
+      document.getElementById('openBrand').addEventListener('click',()=>{const m=document.getElementById('brandModal');m.style.display='flex';const mark=document.getElementById('logoMark').src;const lock=document.getElementById('logoLockup').src;document.getElementById('markPreview').src=mark;document.getElementById('lockupPreview').src=lock;});
+      document.getElementById('saveBrand').addEventListener('click',async()=>{const mi=document.getElementById('markInput').files[0];const li=document.getElementById('lockupInput').files[0];if(mi){const d=await readAsDataUrl(mi);localStorage.setItem('brand_mark',d);document.getElementById('logoMark').src=d;} if(li){const d=await readAsDataUrl(li);localStorage.setItem('brand_lockup',d);document.getElementById('logoLockup').src=d;} document.getElementById('brandModal').style.display='none';});
+      document.getElementById('asof').addEventListener('change',e=>{const v=e.target.value;if(v==='Previous Quarter'){dashboard.as_of='Previous Quarter'} else if (v==='Current Quarter'){dashboard.as_of='Current Quarter'} renderDashboard();});
+      initResizers(); seed();
+    })();
+  </script>
+
+  <!-- Data note: Single-file build per PRD_v2.5; no external assets or network calls. -->
+</body>
+</html>
