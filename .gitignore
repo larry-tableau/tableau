@@ -1,0 +1,2 @@
+# Local planning artifacts should stay out of the public repo.
+.cursor/plans/
