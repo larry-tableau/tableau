@@ -1,0 +1,17 @@
+source_path,private_copy_verified,hash_parity,proposed_action,execute_now,blocking_reason,follow_up
+ANZ-TC2U-Marvel_Dashboard.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Banking_Sample_Data_Set_into_BQ.ipynb,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Latitude_Enterprise_Console.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Latitude_sample.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum2.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum_Embed.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum_Embed_B2B.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum_Embed_B2B_invoice.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum_Embed_B2Ba.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Momentum_Embed_B2C.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Querying_Tableau's_Metadata_API.ipynb,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+Soft_Drink_Sales_Sample.xlsx,yes,match,KEEP_BLOCKED,no,binary_review_incomplete,do not remove until explicit binary decision
+Test.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+examples/Tab_Workbook_Samples.twb,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,update AGENTS.md in same removal branch if deleted
+examples/home_loan_mock_data.py,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
+slack-agentic-enterprise-demo_v2 copy.html,yes,match,REMOVE_FROM_PUBLIC,no,explicit_approval_required,delete only in separate approved removal run
